@@ -322,7 +322,7 @@ bool TheThingsNetwork::join(const char *appEui, const char *appKey, int8_t retri
   return join(retries, retryDelay);
 }
 
-int8_t TheThingsNetwork::sendBytes(const byte* payload, size_t length, port_t port, bool confirm) {
+ttn_response_t TheThingsNetwork::sendBytes(const byte* payload, size_t length, port_t port, bool confirm) {
   bool send;
   if (confirm) {
     send = sendPayload(MAC_TX_TYPE_CNF, port, (uint8_t *)payload, length);
@@ -331,7 +331,7 @@ int8_t TheThingsNetwork::sendBytes(const byte* payload, size_t length, port_t po
   }
   if (!send) {
     errMessage(SEND_COMMAND_FAILED);
-    return -1;
+    return TTN_ERROR_SEND_COMMAND_FAILED;
   }
 
   char *response = readLine();
@@ -347,7 +347,7 @@ int8_t TheThingsNetwork::sendBytes(const byte* payload, size_t length, port_t po
   }
   if (compareStrings(response, MAC_TX_OK)) {
     debugPrintLn(F("Successful transmission"));
-    return 1;
+    return TTN_SUCCESSFUL_TRANSMISSION;
   }
   if (compareStrings(response, MAC_RX, 5)) {
     port_t downlinkPort = receivedPort(response, 7);
@@ -362,11 +362,11 @@ int8_t TheThingsNetwork::sendBytes(const byte* payload, size_t length, port_t po
     debugPrintLn(F(" bytes"));
     if (this->messageCallback)
       this->messageCallback(downlink, downlinkLength, downlinkPort);
-    return 2;
+    return TTN_SUCCESSFUL_RECEIVE;
   }
 
   errMessage(UNEXPECTED_RESPONSE, response);
-  return -10;
+  return TTN_ERROR_UNEXPECTED_RESPONSE;
 }
 
 size_t TheThingsNetwork::bufLength(char *data) {
