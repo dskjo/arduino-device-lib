@@ -17,8 +17,7 @@
 #define MAC_RX "mac_rx"
 
 #define CHECK_CONFIGURATION "Check your coverage, keys and backend status."
-#define JOIN_INCORRECT_KEYS "Invalid keys: check AppKey and AppEui"
-#define PERSONALIZE_INCORRECT_KEYS "Invalid keys: check DevAddr, NwkSKey and AppSKey"
+#define ERROR_KEY_LENGTH "One or more keys are of invalid length."
 
 #define INVALID_SF "Invalid SF"
 #define INVALID_FP "Invalid frequency plan"
@@ -268,7 +267,7 @@ bool TheThingsNetwork::personalize(const char *devAddr, const char *nwkSKey, con
     sendMacSet(MAC_SET_APPSKEY, appSKey);
     return personalize();
   }
-  errMessage(PERSONALIZE_INCORRECT_KEYS);
+  errMessage(ERROR_KEY_LENGTH);
   return false;
 }
 
@@ -299,6 +298,7 @@ bool TheThingsNetwork::provision(const char *appEui, const char *appKey) {
     debugPrintLn();
     return true;
   }
+  errMessage(ERROR_KEY_LENGTH);
   return false;
 }
 
@@ -338,7 +338,6 @@ bool TheThingsNetwork::join(int8_t retries, uint32_t retryDelay) {
 bool TheThingsNetwork::join(const char *appEui, const char *appKey, int8_t retries, uint32_t retryDelay) {
   reset();
   if (!provision(appEui, appKey)) {
-    errMessage(JOIN_INCORRECT_KEYS);
     return false;
   }
   return join(retries, retryDelay);
