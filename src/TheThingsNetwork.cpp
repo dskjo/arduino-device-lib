@@ -16,6 +16,10 @@
 #define MAC_TX_OK "mac_tx_ok"
 #define MAC_RX "mac_rx"
 
+#define CHECK_CONFIGURATION "Check your coverage, keys and backend status."
+#define JOIN_INCORRECT_KEYS "Invalid keys: check AppKey and AppEui"
+#define PERSONALIZE_INCORRECT_KEYS "Invalid keys: check DevAddr, NwkSKey and AppSKey"
+
 #define INVALID_SF "Invalid SF"
 #define INVALID_FP "Invalid frequency plan"
 #define UNEXPECTED_RESPONSE "Unexpected response: "
@@ -258,10 +262,14 @@ void TheThingsNetwork::onMessage(void (*cb)(const byte* payload, size_t length, 
 
 bool TheThingsNetwork::personalize(const char *devAddr, const char *nwkSKey, const char *appSKey) {
   reset();
-  sendMacSet(MAC_SET_DEVICEADDRESS, devAddr);
-  sendMacSet(MAC_SET_NWKSKEY, nwkSKey);
-  sendMacSet(MAC_SET_APPSKEY, appSKey);
-  return personalize();
+  if (bufLength(devAddr) == 8 && bufLength(appSKey) == 32 && bufLength(nwkSKey) == 32) {
+    sendMacSet(MAC_SET_DEVICEADDRESS, devAddr);
+    sendMacSet(MAC_SET_NWKSKEY, nwkSKey);
+    sendMacSet(MAC_SET_APPSKEY, appSKey);
+    return personalize();
+  }
+  errMessage(PERSONALIZE_INCORRECT_KEYS);
+  return false;
 }
 
 bool TheThingsNetwork::personalize() {
@@ -270,6 +278,7 @@ bool TheThingsNetwork::personalize() {
   char *response = readLine();
   if (!compareStrings(response, ACCEPTED)) {
     errMessage(PERSONALIZE_NOT_ACCEPTED, response);
+    errMessage(CHECK_CONFIGURATION);
     return false;
   }
 
@@ -280,29 +289,39 @@ bool TheThingsNetwork::personalize() {
 }
 
 bool TheThingsNetwork::provision(const char *appEui, const char *appKey) {
-  sendMacSet(MAC_SET_APPEUI, appEui);
-  sendMacSet(MAC_SET_APPKEY, appKey);
-  debugPrint(SENDING);
-  sendCommand(MAC_TABLE, MAC_PREFIX, true);
-  sendCommand(MAC_TABLE, MAC_SAVE, false);
-  modemStream->write(SEND_MSG);
-  debugPrintLn();
-  return true;
+  if (bufLength(appEui) == 16 && bufLength(appKey) == 32) {
+    sendMacSet(MAC_SET_APPEUI, appEui);
+    sendMacSet(MAC_SET_APPKEY, appKey);
+    debugPrint(SENDING);
+    sendCommand(MAC_TABLE, MAC_PREFIX, true);
+    sendCommand(MAC_TABLE, MAC_SAVE, false);
+    modemStream->write(SEND_MSG);
+    debugPrintLn();
+    return true;
+  }
+  return false;
 }
 
 bool TheThingsNetwork::join(int8_t retries, uint32_t retryDelay) {
   configureChannels(this->sf, this->fsb);
+  int8_t nbr_retries = retries;
   char *devEui = readValue(SYS_TABLE, SYS_TABLE, SYS_GET_HWEUI);
   sendMacSet(MAC_SET_DEVEUI, devEui);
   while (--retries) {
     if (!sendJoinSet(MAC_JOIN_MODE_OTAA)) {
       errMessage(JOIN_FAILED);
+      if ((nbr_retries - retries) >= 3) {
+        errMessage(CHECK_CONFIGURATION);
+      }
       delay(retryDelay);
       continue;
     }
     char *response = readLine();
     if (!compareStrings(response, ACCEPTED)) {
       errMessage(JOIN_NOT_ACCEPTED, response);
+      if ((nbr_retries - retries) >= 3) {
+        errMessage(CHECK_CONFIGURATION);
+      }
       delay(retryDelay);
       continue;
     }
@@ -318,7 +337,10 @@ bool TheThingsNetwork::join(int8_t retries, uint32_t retryDelay) {
 
 bool TheThingsNetwork::join(const char *appEui, const char *appKey, int8_t retries, uint32_t retryDelay) {
   reset();
-  provision(appEui, appKey);
+  if (!provision(appEui, appKey)) {
+    errMessage(JOIN_INCORRECT_KEYS);
+    return false;
+  }
   return join(retries, retryDelay);
 }
 
