@@ -236,12 +236,12 @@ const char *TheThingsNetwork::readValue(uint8_t prefixTable, uint8_t indexTable,
 }
 
 void TheThingsNetwork::reset(bool adr) {
-  char *version = readValue(SYS_TABLE, SYS_RESET);
-  model = subString(version, 0, 6);
-  debugPrint(F("Version is "));
-  debugPrint(subString(version, 7));
-  debugPrint(F(", model is "));
-  debugPrintLn(model);
+  // char *version = readValue(SYS_TABLE, SYS_RESET);
+  // model = subString(version, 0, 6);
+  // debugPrint(F("Version is "));
+  // debugPrint(subString(version, 7));
+  // debugPrint(F(", model is "));
+  // debugPrintLn(model);
 
   char *devEui = readValue(SYS_TABLE, SYS_TABLE, SYS_GET_HWEUI);
   sendMacSet(MAC_SET_DEVEUI, devEui);
